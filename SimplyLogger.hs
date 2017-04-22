@@ -78,7 +78,7 @@ commandlog memory progM progS nameFlag =
             commandlog newMemory (next (map CBitConstr cbitNs)) progS nameFlag where
                 (cbitNs, newMemory) = addCBits memory (length qbits)
         Free (QGate qbits next) -> do
-            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " went through the Gate!\n"
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " went through the Abstract Unnamed Gate!\n"
             commandlog memory (next qbits) progS nameFlag
         Free (SendQMessage qbits next) -> do
             putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " sent to partner.\n"
@@ -96,6 +96,21 @@ commandlog memory progM progS nameFlag =
             putStrLn $ "This is " ++ name ++ "\n" ++ "Classic bits with numbers " ++ showCBits cbits ++ " recieved from partner.\n"
             commandlog memory (next cbits) progS nameFlag where
                 cbits = popFromCPocket memory
+        Free (Hadamard qbits next) -> do
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " went through the Hadamard Gate.\n"
+            commandlog memory (next qbits) progS nameFlag
+        Free (PauliX qbits next) -> do
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " went through the PauliX Gate.\n"
+            commandlog memory (next qbits) progS nameFlag
+        Free (PauliY qbits next) -> do
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " went through the PauliY Gate.\n"
+            commandlog memory (next qbits) progS nameFlag
+        Free (PauliZ qbits next) -> do
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " went through the PauliZ Gate.\n"
+            commandlog memory (next qbits) progS nameFlag
+        Free (CNot qbitsC qbits next) -> do
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbitsC ++ " and " ++ showQBits qbits ++ " went through the CNot Gate.\n"
+            commandlog memory (next (qbitsC ++ qbits)) progS nameFlag
         Pure r -> do
             putStrLn $ name ++ "'s all!"
             return r
