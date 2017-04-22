@@ -8,16 +8,23 @@ data QBit = QBitConstr Int
 -- классический бит
 data CBit = CBitConstr Int
 
+-- извлеечение номера бита
+exractQNumber :: QBit -> Int
+exractQNumber (QBitConstr qbitN) = qbitN
+
+exractCNumber :: CBit -> Int
+exractCNumber (CBitConstr cbitN) = cbitN
+
 -- набор команд
 data Command rez = 
-    QInit               Bool (QBit -> rez) |
-    CInit               Bool (CBit -> rez) |
-    Measure             QBit (QBit -> rez) |
-    QGate               QBit (QBit -> rez) |
-    SendQMessage        QBit          rez  |
-    RecieveQMessage          (QBit -> rez) |
-    SendCMessage        CBit          rez  |
-    RecieveCMessage          (CBit -> rez)
+    QInit               [Bool] ([QBit] -> rez) |
+    CInit               [Bool] ([CBit] -> rez) |
+    Measure             [QBit] ([CBit] -> rez) |
+    QGate               [QBit] ([QBit] -> rez) |
+    SendQMessage        [QBit]            rez  |
+    RecieveQMessage            ([QBit] -> rez) |
+    SendCMessage        [CBit]            rez  |
+    RecieveCMessage            ([CBit] -> rez)
 
 -- которые функторы
 instance Functor Command where
@@ -34,26 +41,26 @@ instance Functor Command where
 type Program = Free Command
 
 -- для do-нотации
-qInit :: Bool -> Program QBit
+qInit :: [Bool] -> Program [QBit]
 qInit bit = liftF (QInit bit id)
 
-cInit :: Bool -> Program CBit
+cInit :: [Bool] -> Program [CBit]
 cInit bit = liftF (CInit bit id)
 
-measure :: QBit -> Program QBit
+measure :: [QBit] -> Program [CBit]
 measure qbit = liftF (Measure qbit id)
 
-qGate :: QBit -> Program QBit
+qGate :: [QBit] -> Program [QBit]
 qGate qbit = liftF (QGate qbit id)
 
-sendQMessage :: QBit -> Program ()
+sendQMessage :: [QBit] -> Program ()
 sendQMessage qbit = liftF (SendQMessage qbit ())
 
-recieveQMessage :: Program QBit
+recieveQMessage :: Program [QBit]
 recieveQMessage = liftF (RecieveQMessage id)
 
-sendCMessage :: CBit -> Program ()
+sendCMessage :: [CBit] -> Program ()
 sendCMessage cbit = liftF (SendCMessage cbit ())
 
-recieveCMessage :: Program CBit
+recieveCMessage :: Program [CBit]
 recieveCMessage = liftF (RecieveCMessage id)

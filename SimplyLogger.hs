@@ -6,8 +6,8 @@ import Lang
 
 data QMemory = QMemConstr [Int]
 data CMemory = CMemConstr [Int]
-data QPocket = QPoc QBit
-data CPocket = CPoc CBit
+data QPocket = QPoc [QBit]
+data CPocket = CPoc [CBit]
 
 data Memory = MemConstr QMemory CMemory QPocket CPocket
 
@@ -23,77 +23,84 @@ setQMemoryList (MemConstr _ cm qp cp) list = MemConstr (QMemConstr list) cm qp c
 setCMemoryList :: Memory -> [Int] -> Memory
 setCMemoryList (MemConstr qm _ qp cp) list = MemConstr qm (CMemConstr list) qp cp
 
-addIncQ :: Memory -> (Int, Memory)
-addIncQ (MemConstr (QMemConstr qm) cm qp cp) = let new = (endOrZero qm) + 1 
-    in let newQm =  QMemConstr (qm ++ [new])
-    in (new, MemConstr newQm cm qp cp) where
+addQBits :: Memory -> Int -> ([Int], Memory)
+addQBits (MemConstr (QMemConstr qm) cm qp cp) n = let last = endOrZero qm in
+    let news = [last + 1 .. last + n] in
+        (news, MemConstr (QMemConstr (qm ++ news)) cm qp cp)
 
-addIncC :: Memory -> (Int, Memory)
-addIncC (MemConstr qm (CMemConstr cm) qp cp) = let new = (endOrZero cm) + 1 
-    in let newCm =  CMemConstr (cm ++ [new])
-    in (new, MemConstr qm newCm qp cp) where
+addCBits :: Memory -> Int -> ([Int], Memory)
+addCBits (MemConstr qm (CMemConstr cm) qp cp) n = let last = endOrZero cm in
+    let news = [last + 1 .. last + n] in
+        (news, MemConstr qm (CMemConstr (cm ++ news)) qp cp)
 
 endOrZero :: [Int] -> Int
 endOrZero [] = 0
 endOrZero list  = last list 
 
-putInQPocket :: Memory -> QBit -> Memory
-putInQPocket (MemConstr qm cm _ cp) qBit =  MemConstr qm cm (QPoc qBit) cp
+putInQPocket :: Memory -> [QBit] -> Memory
+putInQPocket (MemConstr qm cm _ cp) x =  MemConstr qm cm (QPoc x) cp
 
-popFromQPocket :: Memory -> QBit
-popFromQPocket (MemConstr qm cm (QPoc qBit) cp) = qBit
+popFromQPocket :: Memory -> [QBit]
+popFromQPocket (MemConstr qm cm (QPoc x) cp) = x
 
-putInCPocket :: Memory -> CBit -> Memory
-putInCPocket (MemConstr qm cm qp _) cBit =  MemConstr qm cm qp (CPoc cBit)
+putInCPocket :: Memory -> [CBit] -> Memory
+putInCPocket (MemConstr qm cm qp _) x =  MemConstr qm cm qp (CPoc x)
 
-popFromCPocket :: Memory -> CBit
-popFromCPocket (MemConstr qm cm qp (CPoc cBit)) = cBit
+popFromCPocket :: Memory -> [CBit]
+popFromCPocket (MemConstr qm cm qp (CPoc x)) = x
 
 actorName :: Bool -> String
 actorName nameFlag = if nameFlag then "Alice" else "Bob"
+
+showQBits :: [QBit] -> String
+showQBits qbits = show $ map exractQNumber qbits
+
+showCBits :: [CBit] -> String
+showCBits cbits = show $ map exractCNumber cbits
 
 -- интерприторот
 commandlog :: Memory -> Program () -> Program () -> Bool -> IO ()
 commandlog memory progM progS nameFlag = 
     let name = actorName nameFlag in
         case progM of
-        Free (QInit bit next) -> do
+        Free (QInit bitList next) -> do
             putStrLn $ "This is " ++ name
-            let (c, mem) = addIncQ memory in do
-                putStrLn $ "Init new qubit with number " ++ show c ++ ".\n"
-                commandlog mem (next (QBitConstr c)) progS nameFlag
-        Free (CInit bit next) -> do
+            let (qbitNs, newMemory) = addQBits memory (length bitList) in do
+                putStrLn $ "Init new qubits with numbers " ++ show qbitNs ++ ".\n"
+                commandlog newMemory (next (map QBitConstr qbitNs)) progS nameFlag
+        Free (CInit bitList next) -> do
             putStrLn $ "This is " ++ name
-            let (c, mem) = addIncC memory in do
-                putStrLn $ "Init new classic bit with number" ++ show c ++ ".\n"
-                commandlog mem (next (CBitConstr c)) progS nameFlag
-        Free (Measure (QBitConstr qbitN) next) -> do
-            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubit with number " ++ show qbitN ++ " measured.\n"
-            commandlog memory (next (QBitConstr qbitN)) progS nameFlag
-        Free (QGate (QBitConstr qbitN) next) -> do
-            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubit with number " ++ show qbitN ++ " went through the Gate!\n"
-            commandlog memory (next (QBitConstr qbitN)) progS nameFlag
-        Free (SendQMessage (QBitConstr qbitN) next) -> do
-            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubit with number " ++ show qbitN ++ " sent to partner.\n"
-            commandlog mem progS (next) (not nameFlag) where
-                mem = putInQPocket memory (QBitConstr qbitN) 
+            let (cbitNs, newMemory) = addCBits memory (length bitList) in do
+                putStrLn $ "Init new classic bits with numbers " ++ show cbitNs ++ ".\n"
+                commandlog newMemory (next (map CBitConstr cbitNs)) progS nameFlag
+        Free (Measure qbits next) -> do
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " measured to classic bits with numbers" ++ show cbitNs ++ "\n"
+            commandlog newMemory (next (map CBitConstr cbitNs)) progS nameFlag where
+                (cbitNs, newMemory) = addCBits memory (length qbits)
+        Free (QGate qbits next) -> do
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " went through the Gate!\n"
+            commandlog memory (next qbits) progS nameFlag
+        Free (SendQMessage qbits next) -> do
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " sent to partner.\n"
+            commandlog newMemory progS (next) (not nameFlag) where
+                newMemory = putInQPocket memory qbits
         Free (RecieveQMessage next) -> do
-            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubit with number " ++ show qbitN ++ " recieved from partner.\n"
-            commandlog memory (next (QBitConstr qbitN)) progS nameFlag where
-                (QBitConstr qbitN) = popFromQPocket memory
-        Free (SendCMessage (CBitConstr qbitN) next) -> do
-            putStrLn $ "This is " ++ name ++ "\n" ++ "Classic bit with number " ++ show qbitN ++ " sent to partner.\n"
-            commandlog mem progS (next) (not nameFlag) where
-                mem = putInCPocket memory (CBitConstr qbitN) 
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Qubits with numbers " ++ showQBits qbits ++ " recieved from partner.\n"
+            commandlog memory (next qbits) progS nameFlag where
+                qbits = popFromQPocket memory
+        Free (SendCMessage cbits next) -> do
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Classic bits with numbers " ++ showCBits cbits ++ " sent to partner.\n"
+            commandlog newMemory progS (next) (not nameFlag) where
+                newMemory = putInCPocket memory cbits
         Free (RecieveCMessage next) -> do
-            putStrLn $ "This is " ++ name ++ "\n" ++ "Classic bit with number " ++ show cbitN ++ " recieved from partner.\n"
-            commandlog memory (next (CBitConstr cbitN)) progS nameFlag where
-                (CBitConstr cbitN) = popFromCPocket memory
+            putStrLn $ "This is " ++ name ++ "\n" ++ "Classic bits with numbers " ++ showCBits cbits ++ " recieved from partner.\n"
+            commandlog memory (next cbits) progS nameFlag where
+                cbits = popFromCPocket memory
         Pure r -> do
             putStrLn $ name ++ "'s all!"
             return r
 
-emptyMemory = MemConstr (QMemConstr []) (CMemConstr []) (QPoc (QBitConstr 0)) (CPoc (CBitConstr 0))
+emptyMemory = MemConstr (QMemConstr []) (CMemConstr []) (QPoc []) (CPoc [])
 
 simplyLog :: Program () -> Program () -> IO ()
 simplyLog alice bob = commandlog emptyMemory alice bob True
