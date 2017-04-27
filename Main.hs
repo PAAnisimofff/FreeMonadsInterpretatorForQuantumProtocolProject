@@ -3,8 +3,7 @@ module Main where
 import Lang
 import SimplyLogger
 
--- чисто потестить
-
+-- скрипт Алисы
 alice :: Program ()
 alice = do
     [a, b] <- qInit [True, True]
@@ -14,6 +13,7 @@ alice = do
     sendCMessage [e]
     return ()
 
+-- скрипт Боба
 bob :: Program ()
 bob = do
     [a, b] <- recieveQMessage
@@ -22,4 +22,8 @@ bob = do
     e <- recieveCMessage
     return ()
 
+-- ad-hoc интерпретатор
 main = simplyLog alice bob
+
+-- комонадический интерпретатор
+mainCo = simplyLogCo alice bob
