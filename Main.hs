@@ -1,25 +1,26 @@
 module Main where
 
 import Lang
-import SimplyLogger
+import LoggerAdHoc
+import LoggerComonad
 
 -- скрипт Алисы
 alice :: Program ()
 alice = do
     [a, b] <- qInit [True, True]
-    [c] <- qGate [a]
+    c <- pauliYSingle a
     sendQMessage [b, c]
-    [e] <- cInit [False]
-    sendCMessage [e]
+    e <- cInitSingle False
+    sendCMessageSingle e
     return ()
 
 -- скрипт Боба
 bob :: Program ()
 bob = do
     [a, b] <- recieveQMessage
-    c <- qGate [a, b]
+    c <- pauliX [a, b]
     sendQMessage c
-    e <- recieveCMessage
+    e <- recieveCMessageSingle
     return ()
 
 -- ad-hoc интерпретатор
