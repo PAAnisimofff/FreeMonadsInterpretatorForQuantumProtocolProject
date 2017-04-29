@@ -8,6 +8,8 @@ import Control.Monad.Free
 import Control.Comonad.Cofree
 import Lang
 import LoggerCommon
+import MatrixTools
+import Complex
 
 -- обьединяет два скрипта в одну с переключаясь при отправке
 mix :: Program r -> Program r -> Program r
@@ -34,25 +36,25 @@ instance Pairing f g => Pairing (Cofree f) (Free g) where
 
 -- комонадические функторы
 data InterpreterF rez = InterpreterF {
-    qInitHandle           :: ([Bool]           -> ([QBit], rez)),
-    cInitHandle           :: ([Bool]           -> ([CBit], rez)),
-    measureHandle         :: ([QBit]           -> ([CBit], rez)),
-    qGateHandle           :: ([QBit]           -> ([QBit], rez)),
-    sendQMessageHandle    ::  [QBit]           ->          rez  ,
-    recieveQMessageHandle ::                      ([QBit], rez) ,
-    sendCMessageHandle    ::  [CBit]           ->          rez  ,
-    recieveCMessageHandle ::                      ([CBit], rez) 
+    qInitHandle           :: ([Bool]                              -> ([QBit], rez)),
+    cInitHandle           :: ([Bool]                              -> ([CBit], rez)),
+    measureHandle         :: ([QBit]                              -> ([CBit], rez)),
+    qGateHandle           :: ([QBit] -> (Matrix (Complex Double)) -> ([QBit], rez)),
+    sendQMessageHandle    ::  [QBit]                              ->          rez  ,
+    recieveQMessageHandle ::                                         ([QBit], rez) ,
+    sendCMessageHandle    ::  [CBit]                              ->          rez  ,
+    recieveCMessageHandle ::                                         ([CBit], rez) 
 } deriving Functor
 
 instance Pairing InterpreterF Command where
-    pair f (InterpreterF qi _ _ _ _ _ _ _ ) (QInit           x   k) = pair f (qi x)   k
-    pair f (InterpreterF _ ci _ _ _ _ _ _ ) (CInit           x   k) = pair f (ci x)   k
-    pair f (InterpreterF _ _ m  _ _ _ _ _ ) (Measure         x   k) = pair f (m  x)   k
-    pair f (InterpreterF _ _ _ qg _ _ _ _ ) (QGate           x   k) = pair f (qg x)   k
-    pair f (InterpreterF _ _ _ _ sq _ _ _ ) (SendQMessage    x   k) =      f (sq x)   k
-    pair f (InterpreterF _ _ _ _ _ rq _ _ ) (RecieveQMessage     k) = pair f  rq      k
-    pair f (InterpreterF _ _ _ _ _ _ sc _ ) (SendCMessage    x   k) =      f (sc x)   k
-    pair f (InterpreterF _ _ _ _ _ _ _ rc ) (RecieveCMessage     k) = pair f  rc      k
+    pair f (InterpreterF qi _ _ _ _ _ _ _ ) (QInit           x   k) = pair f (qi x  )   k
+    pair f (InterpreterF _ ci _ _ _ _ _ _ ) (CInit           x   k) = pair f (ci x  )   k
+    pair f (InterpreterF _ _ m  _ _ _ _ _ ) (Measure         x   k) = pair f (m  x  )   k
+    pair f (InterpreterF _ _ _ qg _ _ _ _ ) (QGate           x y k) = pair f (qg x y)   k
+    pair f (InterpreterF _ _ _ _ sq _ _ _ ) (SendQMessage    x   k) =      f (sq x  )   k
+    pair f (InterpreterF _ _ _ _ _ rq _ _ ) (RecieveQMessage     k) = pair f  rq        k
+    pair f (InterpreterF _ _ _ _ _ _ sc _ ) (SendCMessage    x   k) =      f (sc x  )   k
+    pair f (InterpreterF _ _ _ _ _ _ _ rc ) (RecieveCMessage     k) = pair f  rc        k
 
 type CoProgram a = Cofree InterpreterF a
 
@@ -90,10 +92,10 @@ coMeasure (memory, nameFlag, changeFlag, io) qbits = (cbits, (newMemory, nameFla
         (cbitNs, newMemory) = addCBits memory (length qbits)
         cbits = map CBit cbitNs
 
-coQGate :: CoMemorySet -> [QBit] -> ([QBit], CoMemorySet)
-coQGate (memory, nameFlag, changeFlag, io) qbits = (qbits, (memory, nameFlag, False, newio))
+coQGate :: CoMemorySet -> [QBit] -> (Matrix (Complex Double)) -> ([QBit], CoMemorySet)
+coQGate (memory, nameFlag, changeFlag, io) qbits m = (qbits, (memory, nameFlag, False, newio))
     where 
-        newio = io >> introduce nameFlag changeFlag >> tab >> qAbstractGateMessage qbits
+        newio = io >> introduce nameFlag changeFlag >> tab >> qGateMessage qbits m
 
 coSendQMessage :: CoMemorySet -> [QBit] -> CoMemorySet
 coSendQMessage (memory, nameFlag, changeFlag, io) qbits = (newMemory, not nameFlag, True,  newio)

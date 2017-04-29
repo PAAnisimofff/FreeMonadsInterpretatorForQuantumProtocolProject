@@ -32,10 +32,10 @@ commandlog memory progM progS nameFlag changeFlag =
         commandlog newMemory (next cbits) progS nameFlag False where
             (cbitNs, newMemory) = addCBits memory (length qbits)
             cbits = map CBit cbitNs
-    Free (QGate qbits next) -> do
+    Free (QGate qbits m next) -> do
         introduce nameFlag changeFlag
         tab
-        qAbstractGateMessage qbits
+        qGateMessage qbits m
         commandlog memory (next qbits) progS nameFlag False
     Free (SendQMessage qbits next) -> do
         introduce nameFlag changeFlag

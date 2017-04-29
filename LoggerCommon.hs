@@ -3,7 +3,10 @@ module LoggerCommon where
 import System.IO
 -- import Control.Monad.Free
 -- import Control.Comonad.Cofree
+import Data.String.Utils (replace)
 import Lang
+import MatrixTools
+import Complex
 
 -- память
 data QMemory = QMemConstr [Int]
@@ -106,3 +109,6 @@ recieveCMessageMessage cbits = putStrLn $ "- Classic bits with numbers " ++ show
 
 qAbstractGateMessage :: [QBit] -> IO ()
 qAbstractGateMessage qbits = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " went through the Abstract Gate!"
+
+qGateMessage :: [QBit] -> (Matrix (Complex Double)) -> IO ()
+qGateMessage qbits m = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " went through the gate with0 matrix:\n\n\t" ++ (replace "\n" "\n\t" (show m))
