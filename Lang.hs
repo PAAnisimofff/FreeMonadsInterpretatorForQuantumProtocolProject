@@ -3,6 +3,8 @@
 module Lang where
 
 import Control.Monad.Free
+import MatrixTools
+import Complex
 
 -- кубит
 data QBit = QBit Int
@@ -21,14 +23,14 @@ exractCNumber (CBit cbitN) = cbitN
 
 -- набор команд
 data Command rez = 
-    QInit           [Bool] ([QBit] -> rez) |
-    CInit           [Bool] ([CBit] -> rez) |
-    Measure         [QBit] ([CBit] -> rez) |
-    QGate           [QBit] ([QBit] -> rez) |
-    SendQMessage    [QBit]            rez  |
-    RecieveQMessage        ([QBit] -> rez) |
-    SendCMessage    [CBit]            rez  |
-    RecieveCMessage        ([CBit] -> rez)
+    QInit           [Bool]                         ([QBit] -> rez) |
+    CInit           [Bool]                         ([CBit] -> rez) |
+    Measure         [QBit]                         ([CBit] -> rez) |
+    QGate           [QBit] (Matrix (Complex Double)) ([QBit] -> rez) |
+    SendQMessage    [QBit]                                    rez  |
+    RecieveQMessage                                ([QBit] -> rez) |
+    SendCMessage    [CBit]                                    rez  |
+    RecieveCMessage                                ([CBit] -> rez)
     deriving Functor
 
 -- программа - список команд 
@@ -64,19 +66,34 @@ recieveCMessage :: Program [CBit]
 recieveCMessage = liftF $ RecieveCMessage id
 
 hadamard :: [QBit] -> Program [QBit]
-hadamard qbits = liftF $ QGate qbits id
+hadamard qbits = liftF $ QGate qbits m id 
+    where
+        mSize = 2 ^ length qbits
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 pauliX :: [QBit] -> Program [QBit]
-pauliX qbits = liftF $ QGate qbits id
+pauliX qbits = liftF $ QGate qbits m id 
+    where
+        mSize = 2 ^ length qbits
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 pauliY :: [QBit] -> Program [QBit]
-pauliY qbits = liftF $ QGate qbits id
+pauliY qbits = liftF $ QGate qbits m id 
+    where
+        mSize = 2 ^ length qbits
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 pauliZ :: [QBit] -> Program [QBit]
-pauliZ qbits = liftF $ QGate qbits id
+pauliZ qbits = liftF $ QGate qbits m id 
+    where
+        mSize = 2 ^ length qbits
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 cnot :: [QBit] -> [QBit] -> Program [QBit]
-cnot qbitsF qbitsS = liftF $ QGate (qbitsF ++ qbitsS) id
+cnot qbitsF qbitsS = liftF $ QGate (qbitsF ++ qbitsS) m id 
+    where
+        mSize = 2 ^ (length qbitsF + length qbitsS) 
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 -- для одиночных битов
 qInitSingle :: Bool -> Program QBit
@@ -101,16 +118,31 @@ recieveCMessageSingle :: Program CBit
 recieveCMessageSingle = singler . liftF $ RecieveCMessage id
 
 hadamardSingle :: QBit -> Program QBit
-hadamardSingle qbit = singler . liftF $ QGate [qbit] id
+hadamardSingle qbit = singler . liftF $ QGate [qbit] m id 
+    where
+        mSize = 2
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 pauliXSingle :: QBit -> Program QBit
-pauliXSingle qbit = singler . liftF $ QGate [qbit] id
+pauliXSingle qbit = singler . liftF $ QGate [qbit] m id 
+    where
+        mSize = 2
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 pauliYSingle :: QBit -> Program QBit
-pauliYSingle qbit = singler . liftF $ QGate [qbit] id
+pauliYSingle qbit = singler . liftF $ QGate [qbit] m id 
+    where
+        mSize = 2
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 pauliZSingle :: QBit -> Program QBit
-pauliZSingle qbit = singler . liftF $ QGate [qbit] id
+pauliZSingle qbit = singler . liftF $ QGate [qbit] m id 
+    where
+        mSize = 2
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 cnotSingle :: QBit -> QBit -> Program QBit
-cnotSingle qbitF qbitS = singler . liftF $ QGate [qbitF, qbitS] id
+cnotSingle qbitF qbitS = singler . liftF $ QGate [qbitF, qbitS] m id 
+    where
+        mSize = 2 ^ 2
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
