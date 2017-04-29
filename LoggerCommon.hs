@@ -80,7 +80,7 @@ introduce :: Bool -> Bool -> IO ()
 introduce nameFlag changeFlag = if changeFlag then introduceActor nameFlag else return ()
 
 introduceActor :: Bool -> IO ()
-introduceActor nameFlag = putStrLn $ "This is " ++ (actorName nameFlag)
+introduceActor nameFlag = putStrLn $ "This is " ++ (actorName nameFlag) ++ "!"
 
 actorsOut :: Bool -> IO ()
 actorsOut nameFlag = putStrLn $ (actorName nameFlag) ++ "'s all!"
@@ -111,4 +111,4 @@ qAbstractGateMessage :: [QBit] -> IO ()
 qAbstractGateMessage qbits = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " went through the Abstract Gate!"
 
 qGateMessage :: [QBit] -> (Matrix (Complex Double)) -> IO ()
-qGateMessage qbits m = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " went through the gate with0 matrix:\n\n\t" ++ (replace "\n" "\n\t" (show m))
+qGateMessage qbits m = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " went through the gate with matrix:\n\n\t" ++ (replace "\n" "\n\t" (show m))
