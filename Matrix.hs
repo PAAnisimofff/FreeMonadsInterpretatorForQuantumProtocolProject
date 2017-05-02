@@ -582,6 +582,7 @@ detLaplace (M 1 1 v) = V.head (V.head v)
 detLaplace m =
     sum [ (-1)^(i-1) * m ! (i,1) * detLaplace (minorMatrix i 1 m) | i <- [1 .. nrows m] ]
 
+<<<<<<< HEAD
 -- | Создает матрицу из матрицы матриц. Внутренние матрицы должны быть одной размерности
 flatten:: (Matrix (Matrix a)) -> Matrix a
 flatten m = foldl1 (<->) $ map (foldl1 (<|>) . (\i -> getRow i m)) [1..(nrows m)]
@@ -589,3 +590,6 @@ flatten m = foldl1 (<->) $ map (foldl1 (<|>) . (\i -> getRow i m)) [1..(nrows m)
 -- | тензорное произвдение двух матриц произвольного размера
 tensor :: Num a => Matrix a -> Matrix a -> Matrix a
 tensor a b = flatten (fmap (\y->scaleMatrix y b ) a)
+=======
+
+>>>>>>> 485463ffffb6b4b16ebf3056a0a741cb661730d7
