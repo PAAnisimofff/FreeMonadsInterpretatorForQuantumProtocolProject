@@ -1,93 +1,148 @@
+{-# LANGUAGE DeriveFunctor #-}
+
 module Lang where
 
 import Control.Monad.Free
+import MatrixTools
+import Complex
 
 -- кубит
-data QBit = QBitConstr Int
+data QBit = QBit Int
+    deriving (Eq, Show)
 
 -- классический бит
-data CBit = CBitConstr Int
+data CBit = CBit Int
+    deriving (Eq, Show)
 
 -- извлеечение номера бита
 exractQNumber :: QBit -> Int
-exractQNumber (QBitConstr qbitN) = qbitN
+exractQNumber (QBit qbitN) = qbitN
 
 exractCNumber :: CBit -> Int
-exractCNumber (CBitConstr cbitN) = cbitN
+exractCNumber (CBit cbitN) = cbitN
 
 -- набор команд
 data Command rez = 
-    QInit               [Bool]        ([QBit] -> rez) |
-    CInit               [Bool]        ([CBit] -> rez) |
-    Measure             [QBit]        ([CBit] -> rez) |
-    QGate               [QBit]        ([QBit] -> rez) |
-    SendQMessage        [QBit]            rez  |
-    RecieveQMessage                   ([QBit] -> rez) |
-    SendCMessage        [CBit]            rez  |
-    RecieveCMessage                   ([CBit] -> rez) |
-    Hadamard            [QBit]        ([QBit] -> rez) |
-    CNot                [QBit] [QBit] ([QBit] -> rez) |
-    PauliX              [QBit]        ([QBit] -> rez) |
-    PauliY              [QBit]        ([QBit] -> rez) |
-    PauliZ              [QBit]        ([QBit] -> rez)
-
-
--- которые функторы
-instance Functor Command where
-    fmap f (QInit           bit          g) = QInit        bit        (f . g)
-    fmap f (CInit           bit          g) = CInit        bit        (f . g)
-    fmap f (Measure         qbit         g) = Measure      qbit       (f . g)
-    fmap f (QGate           qbit         g) = QGate        qbit       (f . g)
-    fmap f (SendQMessage    qbit       x  ) = SendQMessage qbit       (f x)
-    fmap f (RecieveQMessage              g) = RecieveQMessage         (f . g)
-    fmap f (SendCMessage    cbit       x  ) = SendCMessage cbit       (f x)
-    fmap f (RecieveCMessage              g) = RecieveCMessage         (f . g)
-    fmap f (Hadamard        qbit         g) = Hadamard     qbit       (f . g)
-    fmap f (PauliX          qbit         g) = PauliX       qbit       (f . g)
-    fmap f (PauliY          qbit         g) = PauliY       qbit       (f . g)
-    fmap f (PauliZ          qbit         g) = PauliZ       qbit       (f . g)
-    fmap f (CNot            qbitC qbit   g) = CNot         qbitC qbit (f . g)
-
+    QInit           [Bool]                         ([QBit] -> rez) |
+    CInit           [Bool]                         ([CBit] -> rez) |
+    Measure         [QBit]                         ([CBit] -> rez) |
+    QGate           [QBit] (Matrix (Complex Double)) ([QBit] -> rez) |
+    SendQMessage    [QBit]                                    rez  |
+    RecieveQMessage                                ([QBit] -> rez) |
+    SendCMessage    [CBit]                                    rez  |
+    RecieveCMessage                                ([CBit] -> rez)
+    deriving Functor
 
 -- программа - список команд 
 type Program = Free Command
 
--- для do-нотации
+-- превращает возвращаемый функтором список в одиночный элемент
+singler :: (Functor f) => f [r] -> f r
+singler command = fmap (\ [x] -> x) command
+
+
+-- функции-обёртки
+
+-- для списков
 qInit :: [Bool] -> Program [QBit]
-qInit bit = liftF (QInit bit id)
+qInit bits = liftF $ QInit bits id
 
 cInit :: [Bool] -> Program [CBit]
-cInit bit = liftF (CInit bit id)
+cInit bits = liftF $ CInit bits id
 
 measure :: [QBit] -> Program [CBit]
-measure qbit = liftF (Measure qbit id)
-
-qGate :: [QBit] -> Program [QBit]
-qGate qbit = liftF (QGate qbit id)
+measure qbits = liftF $ Measure qbits id
 
 sendQMessage :: [QBit] -> Program ()
-sendQMessage qbit = liftF (SendQMessage qbit ())
+sendQMessage qbits = liftF $ SendQMessage qbits ()
 
 recieveQMessage :: Program [QBit]
-recieveQMessage = liftF (RecieveQMessage id)
+recieveQMessage = liftF $ RecieveQMessage id
 
 sendCMessage :: [CBit] -> Program ()
-sendCMessage cbit = liftF (SendCMessage cbit ())
+sendCMessage cbits = liftF $ SendCMessage cbits ()
 
 recieveCMessage :: Program [CBit]
-recieveCMessage = liftF (RecieveCMessage id)
+recieveCMessage = liftF $ RecieveCMessage id
 
 hadamard :: [QBit] -> Program [QBit]
-hadamard qbits = liftF (Hadamard qbits id)
+hadamard qbits = liftF $ QGate qbits m id 
+    where
+        mSize = 2 ^ length qbits
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 pauliX :: [QBit] -> Program [QBit]
-pauliX qbits = liftF (PauliX qbits id)
+pauliX qbits = liftF $ QGate qbits m id 
+    where
+        mSize = 2 ^ length qbits
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 pauliY :: [QBit] -> Program [QBit]
-pauliY qbits = liftF (PauliY qbits id)
+pauliY qbits = liftF $ QGate qbits m id 
+    where
+        mSize = 2 ^ length qbits
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 pauliZ :: [QBit] -> Program [QBit]
-pauliZ qbits = liftF (PauliZ qbits id)
+pauliZ qbits = liftF $ QGate qbits m id 
+    where
+        mSize = 2 ^ length qbits
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
 
 cnot :: [QBit] -> [QBit] -> Program [QBit]
-cnot qbitsF qbitsS = liftF (CNot qbitsF qbitsS id)
+cnot qbitsF qbitsS = liftF $ QGate (qbitsF ++ qbitsS) m id 
+    where
+        mSize = 2 ^ (length qbitsF + length qbitsS) 
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
+
+-- для одиночных битов
+qInitSingle :: Bool -> Program QBit
+qInitSingle bit = singler . liftF $ QInit [bit] id
+
+cInitSingle :: Bool -> Program CBit
+cInitSingle bit = singler . liftF $ CInit [bit] id
+
+measureSingle :: QBit -> Program CBit
+measureSingle qbit = singler . liftF $ Measure [qbit] id
+
+sendQMessageSingle :: QBit -> Program ()
+sendQMessageSingle qbit = liftF $ SendQMessage [qbit] ()
+
+recieveQMessageSingle :: Program QBit
+recieveQMessageSingle = singler . liftF $ RecieveQMessage id
+
+sendCMessageSingle :: CBit -> Program ()
+sendCMessageSingle cbit = liftF $ SendCMessage [cbit] ()
+
+recieveCMessageSingle :: Program CBit
+recieveCMessageSingle = singler . liftF $ RecieveCMessage id
+
+hadamardSingle :: QBit -> Program QBit
+hadamardSingle qbit = singler . liftF $ QGate [qbit] m id 
+    where
+        mSize = 2
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
+
+pauliXSingle :: QBit -> Program QBit
+pauliXSingle qbit = singler . liftF $ QGate [qbit] m id 
+    where
+        mSize = 2
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
+
+pauliYSingle :: QBit -> Program QBit
+pauliYSingle qbit = singler . liftF $ QGate [qbit] m id 
+    where
+        mSize = 2
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
+
+pauliZSingle :: QBit -> Program QBit
+pauliZSingle qbit = singler . liftF $ QGate [qbit] m id 
+    where
+        mSize = 2
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
+
+cnotSingle :: QBit -> QBit -> Program QBit
+cnotSingle qbitF qbitS = singler . liftF $ QGate [qbitF, qbitS] m id 
+    where
+        mSize = 2 ^ 2
+        m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
