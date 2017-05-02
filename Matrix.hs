@@ -584,7 +584,7 @@ detLaplace m =
 
 
 -- | Создает матрицу из матрицы матриц. Внутренние матрицы должны быть одной размерности
-flatten:: (Matrix (Matrix a)) -> Matrix a
+flatten :: (Matrix (Matrix a)) -> Matrix a
 flatten m = foldl1 (<->) $ map (foldl1 (<|>) . (\i -> getRow i m)) [1..(nrows m)]
 
 -- | тензорное произвдение двух матриц произвольного размера
