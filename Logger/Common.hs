@@ -1,12 +1,12 @@
-module LoggerCommon where
+module Logger.Common where
 
 import System.IO
 -- import Control.Monad.Free
 -- import Control.Comonad.Cofree
 import Data.String.Utils (replace)
-import Lang
-import Matrix
-import Complex
+import Lang.Lang
+import Common.Matrix
+import Common.Complex
 
 -- память
 data QMemory = QMemConstr [Int]

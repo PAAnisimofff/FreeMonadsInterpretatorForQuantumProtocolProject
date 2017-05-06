@@ -1,9 +1,9 @@
-module LangGates where
+module Lang.Gates where
 
-import Lang
+import Lang.Lang
 import Control.Monad.Free
-import Matrix
-import Complex
+import Common.Matrix
+import Common.Complex
 
 -- для списков
 hadamardSingle :: QBit -> Program QBit

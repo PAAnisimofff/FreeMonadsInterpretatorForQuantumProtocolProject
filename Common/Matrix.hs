@@ -1,7 +1,7 @@
 
 -- | Операции над матрицами.
  
-module Matrix (
+module Common.Matrix (
     -- * Типы матриц
     Matrix , prettyMatrix
   , nrows , ncols
@@ -52,7 +52,7 @@ import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as MV
 import Control.Monad.Primitive (PrimMonad,PrimState)
 import Data.List (maximumBy)
-import Complex
+import Common.Complex
 -------------------------------------------------------
 -------------------------------------------------------
 ---- ТИП МАТРИЦ

@@ -1,15 +1,15 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module LoggerComonad where
+module Logger.Comonad where
 
 import System.IO
 import Control.Monad.Free
 import Control.Comonad.Cofree
-import Lang
-import LoggerCommon
-import Matrix
-import Complex
+import Lang.Lang
+import Logger.Common
+import Common.Matrix
+import Common.Complex
 
 -- обьединяет два скрипта в одну с переключаясь при отправке
 mix :: Program r -> Program r -> Program r
