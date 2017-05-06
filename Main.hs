@@ -1,6 +1,7 @@
 module Main where
 
 import Lang
+import LangGates
 import LoggerAdHoc
 import LoggerComonad
 
