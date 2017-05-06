@@ -3,7 +3,7 @@
 module Lang where
 
 import Control.Monad.Free
-import MatrixTools
+import Matrix
 import Complex
 
 -- кубит

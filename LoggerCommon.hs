@@ -5,7 +5,7 @@ import System.IO
 -- import Control.Comonad.Cofree
 import Data.String.Utils (replace)
 import Lang
-import MatrixTools
+import Matrix
 import Complex
 
 -- память

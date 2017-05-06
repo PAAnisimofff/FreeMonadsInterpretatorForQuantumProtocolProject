@@ -8,7 +8,7 @@ import Control.Monad.Free
 import Control.Comonad.Cofree
 import Lang
 import LoggerCommon
-import MatrixTools
+import Matrix
 import Complex
 
 -- обьединяет два скрипта в одну с переключаясь при отправке
