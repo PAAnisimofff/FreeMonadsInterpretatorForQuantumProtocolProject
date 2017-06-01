@@ -21,16 +21,20 @@ exractQNumber (QBit qbitN) = qbitN
 exractCNumber :: CBit -> Int
 exractCNumber (CBit cbitN) = cbitN
 
+type QGateDeterminant = Matrix (Complex Double)
+type СGateDeterminant = [Bool] -> [Bool]
+
 -- набор команд
 data Command rez = 
-    QInit           [Bool]                         ([QBit] -> rez) |
-    CInit           [Bool]                         ([CBit] -> rez) |
-    Measure         [QBit]                         ([CBit] -> rez) |
-    QGate           [QBit] (Matrix (Complex Double)) ([QBit] -> rez) |
-    SendQMessage    [QBit]                                    rez  |
-    RecieveQMessage                                ([QBit] -> rez) |
-    SendCMessage    [CBit]                                    rez  |
-    RecieveCMessage                                ([CBit] -> rez)
+    QInit           [Bool]                  ([QBit] -> rez) |
+    CInit           [Bool]                  ([CBit] -> rez) |
+    Measure         [QBit]                  ([CBit] -> rez) |
+    QGate           [QBit] QGateDeterminant ([QBit] -> rez) |
+    CGate           [CBit] СGateDeterminant ([CBit] -> rez) |
+    SendQMessage    [QBit]                             rez  |
+    RecieveQMessage                         ([QBit] -> rez) |
+    SendCMessage    [CBit]                             rez  |
+    RecieveCMessage                         ([CBit] -> rez)
     deriving Functor
 
 -- программа - список команд 

@@ -6,66 +6,41 @@ import Lang.Lang
 import Logger.Common
 
 -- ad-hoc интерпретатор
-commandlog :: Memory -> Program () -> Program () -> Bool -> Bool -> IO ()
-commandlog memory progM progS nameFlag changeFlag = 
+commandlog :: CoMemorySet -> Program () -> Program () -> CoMemorySet
+commandlog memory progM progS = 
     case progM of
-    Free (QInit bits next) -> do
-        introduce nameFlag changeFlag
-        tab
-        qInitMessage qbits
-        commandlog newMemory (next qbits) progS nameFlag False 
+    Free (QInit bits next) -> commandlog newMemory (next qbits) progS 
         where
-            (qbitNs, newMemory) = addQBits memory (length bits)
-            qbits = map QBit qbitNs
-    Free (CInit bits next) -> do
-        introduce nameFlag changeFlag
-        tab
-        cInitMessage cbits
-        commandlog newMemory (next cbits) progS nameFlag False 
+            (qbits, newMemory) = coQInit memory bits
+    Free (CInit bits next) -> commandlog newMemory (next cbits) progS 
         where
-            (cbitNs, newMemory) = addCBits memory (length bits)
-            cbits = map CBit cbitNs
-    Free (Measure qbits next) -> do
-        introduce nameFlag changeFlag
-        tab
-        measureMessage qbits cbits
-        commandlog newMemory (next cbits) progS nameFlag False where
-            (cbitNs, newMemory) = addCBits memory (length qbits)
-            cbits = map CBit cbitNs
-    Free (QGate qbits m next) -> do
-        introduce nameFlag changeFlag
-        tab
-        qGateMessage qbits m
-        commandlog memory (next qbits) progS nameFlag False
-    Free (SendQMessage qbits next) -> do
-        introduce nameFlag changeFlag
-        tab
-        sendQMessageMessage qbits
-        commandlog newMemory progS (next) (not nameFlag) True where
-            newMemory = putInQPocket memory qbits
-    Free (RecieveQMessage next) -> do
-        introduce nameFlag changeFlag
-        tab
-        recieveQMessageMessage qbits
-        commandlog memory (next qbits) progS nameFlag False where
-            qbits = popFromQPocket memory
-    Free (SendCMessage cbits next) -> do
-        introduce nameFlag changeFlag
-        tab
-        sendCMessageMessage cbits
-        commandlog newMemory progS (next) (not nameFlag) True where
-            newMemory = putInCPocket memory cbits
-    Free (RecieveCMessage next) -> do
-        introduce nameFlag changeFlag
-        tab
-        recieveCMessageMessage cbits
-        commandlog memory (next cbits) progS nameFlag False where
-            cbits = popFromCPocket memory
-    Pure r -> do
-        actorsOut nameFlag
-        return r
-
+            (cbits, newMemory) = coCInit memory bits
+    Free (Measure qbits next) -> commandlog newMemory (next cbits) progS
+        where
+            (cbits, newMemory) = coMeasure memory qbits
+    Free (QGate qbits m next) -> commandlog newMemory (next newQbits) progS
+        where
+            (newQbits, newMemory) = coQGate memory qbits m
+    Free (CGate cbits f next) -> commandlog newMemory (next newCbits) progS
+        where
+            (newCbits, newMemory) = coCGate memory cbits f
+    Free (SendQMessage qbits next) -> commandlog newMemory progS (next) 
+        where
+            newMemory = coSendQMessage memory qbits
+    Free (RecieveQMessage next) -> commandlog newMemory (next qbits) progS 
+        where
+            (qbits, newMemory) = coRecieveQMessage memory
+    Free (SendCMessage cbits next) -> commandlog newMemory progS (next) 
+        where
+            newMemory = coSendCMessage memory cbits
+    Free (RecieveCMessage next) -> commandlog newMemory (next cbits) progS 
+        where
+            (cbits, newMemory) = coRecieveCMessage memory
+    Pure r -> memory
 
 -- вызов ad-hoc интепретатора
 simplyLog :: Program () -> Program () -> IO ()
-simplyLog alice bob = commandlog emptyMemory alice bob True True
+simplyLog alice bob = putStr $ mewMessage
+    where
+        (_,nameFlag,_, message) = commandlog emptyMemorySet alice bob
+        mewMessage = message ++ actorsOut nameFlag
