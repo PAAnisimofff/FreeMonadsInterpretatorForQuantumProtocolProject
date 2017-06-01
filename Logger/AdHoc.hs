@@ -1,9 +1,9 @@
-module LoggerAdHoc where
+module Logger.AdHoc where
 
 import System.IO
 import Control.Monad.Free
-import Lang
-import LoggerCommon
+import Lang.Lang
+import Logger.Common
 
 -- ad-hoc интерпретатор
 commandlog :: Memory -> Program () -> Program () -> Bool -> Bool -> IO ()
