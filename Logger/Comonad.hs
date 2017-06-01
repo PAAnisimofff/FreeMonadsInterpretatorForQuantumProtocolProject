@@ -34,8 +34,6 @@ instance Pairing f g => Pairing (Cofree f) (Free g) where
     pair p (a :< _ ) (Pure x)  = p a x
     pair p (_ :< fs) (Free gs) = pair (pair p) fs gs
 
-
-
 instance Pairing InterpreterF Command where
     pair f (InterpreterF qi _ _ _ _ _ _ _ _ ) (QInit           x   k) = pair f (qi x  )   k
     pair f (InterpreterF _ ci _ _ _ _ _ _ _ ) (CInit           x   k) = pair f (ci x  )   k
@@ -55,6 +53,7 @@ goTogether = coiter next emptyMemorySet
 
 -- вызов комонадического интерпретатора
 simplyLogCo :: Program () -> Program () -> IO ()
-simplyLogCo progM progS = ioNew where
-    (_, nameFlag, _, io) = pair const goTogether (mix progS progM)
-    ioNew = io >> actorsOut nameFlag
+simplyLogCo progM progS = putStr $ mewMessage
+    where
+        (_, nameFlag, _, message) = pair const goTogether (mix progS progM)
+        mewMessage = message ++ actorsOut nameFlag

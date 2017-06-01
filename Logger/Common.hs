@@ -30,12 +30,13 @@ data CPocket = CPoc [CBit]
 
 data Memory = MemConstr QMemory CMemory QPocket CPocket
 
+type CoMemorySet = (Memory, Bool, Bool, String)
+
+emptyString = ""
+
 emptyMemory = MemConstr (QMemConstr []) (CMemConstr []) (QPoc []) (CPoc [])
 
-emptyMemorySet = (emptyMemory, True, True, return ()) :: CoMemorySet
-
--- набор памяти
-type CoMemorySet = (Memory, Bool, Bool, IO ())
+emptyMemorySet = (emptyMemory, True, True, emptyString)
 
 -- общие функции
 
@@ -90,104 +91,104 @@ showCBits cbits = show $ map exractCNumber cbits
 -- сообщения
 
 -- всяко
-tab :: IO ()
-tab = putStr "\t"
+tab :: String
+tab = "\t"
 -- актор
 
-introduce :: Bool -> Bool -> IO ()
-introduce nameFlag changeFlag = if changeFlag then introduceActor nameFlag else return ()
+introduce :: Bool -> Bool -> String
+introduce nameFlag changeFlag = if changeFlag then introduceActor nameFlag else emptyString
 
-introduceActor :: Bool -> IO ()
-introduceActor nameFlag = putStrLn $ "This is " ++ (actorName nameFlag) ++ "!"
+introduceActor :: Bool -> String
+introduceActor nameFlag = "This is " ++ (actorName nameFlag) ++ "!" ++ "\n"
 
-actorsOut :: Bool -> IO ()
-actorsOut nameFlag = putStrLn $ (actorName nameFlag) ++ "'s all!"
+actorsOut :: Bool -> String
+actorsOut nameFlag = (actorName nameFlag) ++ "'s all!" ++ "\n"
 
 -- операции
-qInitMessage :: [QBit] -> IO ()
-qInitMessage qbitNs = putStrLn $ "- Init new qubits with numbers " ++ showQBits qbitNs ++ "."
+qInitMessage :: [QBit] -> String
+qInitMessage qbitNs = "- Init new qubits with numbers " ++ showQBits qbitNs ++ "."
 
-cInitMessage :: [CBit] -> IO ()
-cInitMessage cbitNs = putStrLn $ "- Init new classic bits with numbers " ++ showCBits cbitNs ++ "."
+cInitMessage :: [CBit] -> String
+cInitMessage cbitNs = "- Init new classic bits with numbers " ++ showCBits cbitNs ++ "."
 
-measureMessage :: [QBit] -> [CBit] -> IO ()
-measureMessage qbits cbits = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " measured to classic bits with numbers" ++ showCBits cbits ++ "."
+measureMessage :: [QBit] -> [CBit] -> String
+measureMessage qbits cbits = "- Qubits with numbers " ++ showQBits qbits ++ " measured to classic bits with numbers" ++ showCBits cbits ++ "."
 
-sendQMessageMessage :: [QBit] -> IO ()
-sendQMessageMessage qbits = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " sent to partner."
+sendQMessageMessage :: [QBit] -> String
+sendQMessageMessage qbits = "- Qubits with numbers " ++ showQBits qbits ++ " sent to partner."
 
-recieveQMessageMessage :: [QBit] -> IO ()
-recieveQMessageMessage qbits = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " recieved from partner."
+recieveQMessageMessage :: [QBit] -> String
+recieveQMessageMessage qbits = "- Qubits with numbers " ++ showQBits qbits ++ " recieved from partner."
 
-sendCMessageMessage :: [CBit] -> IO ()
-sendCMessageMessage cbits = putStrLn $ "- Classic bits with numbers " ++ showCBits cbits ++ " sent to partner."
+sendCMessageMessage :: [CBit] -> String
+sendCMessageMessage cbits = "- Classic bits with numbers " ++ showCBits cbits ++ " sent to partner."
 
-recieveCMessageMessage :: [CBit] -> IO ()
-recieveCMessageMessage cbits = putStrLn $ "- Classic bits with numbers " ++ showCBits cbits ++ " recieved from partner."
+recieveCMessageMessage :: [CBit] -> String
+recieveCMessageMessage cbits = "- Classic bits with numbers " ++ showCBits cbits ++ " recieved from partner."
 
-qAbstractGateMessage :: [QBit] -> IO ()
-qAbstractGateMessage qbits = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " went through the Abstract Gate!"
+qAbstractGateMessage :: [QBit] -> String
+qAbstractGateMessage qbits = "- Qubits with numbers " ++ showQBits qbits ++ " went through the Abstract Gate!"
 
-qGateMessage :: [QBit] -> QGateDeterminant -> IO ()
-qGateMessage qbits m = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " went through the gate with matrix:\n\n\t" ++ (replace "\n" "\n\t" (show m))
+qGateMessage :: [QBit] -> String
+qGateMessage qbits = "- Qubits with numbers " ++ showQBits qbits ++ " went through the some gate."
 
-cGateMessage :: [CBit] -> СGateDeterminant -> IO ()
-cGateMessage cbits m = putStrLn $ "- Classic bits with numbers " ++ showCBits cbits ++ " went through the gate."
+cGateMessage :: [CBit] -> String
+cGateMessage cbits = "- Classic bits with numbers " ++ showCBits cbits ++ " went through some gate."
 
 
 -- реализация обработчиков комонадического интерпретатора
 
 coQInit :: CoMemorySet -> [Bool] -> ([QBit], CoMemorySet)
-coQInit (memory, nameFlag, changeFlag, io) bits = (qbits, (newMemory, nameFlag, False, newio)) 
+coQInit (memory, nameFlag, changeFlag, message) bits = (qbits, (newMemory, nameFlag, False, newMessage)) 
     where
-        newio = io >> introduce nameFlag changeFlag >> tab >> qInitMessage qbits
+        newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ qInitMessage qbits ++ "\n"
         (qbitNs, newMemory) = addQBits memory (length bits)
         qbits = map QBit qbitNs
 
 coCInit :: CoMemorySet -> [Bool] -> ([CBit], CoMemorySet)
-coCInit (memory, nameFlag, changeFlag, io) bits = (cbits, (newMemory, nameFlag, False, newio)) 
+coCInit (memory, nameFlag, changeFlag, message) bits = (cbits, (newMemory, nameFlag, False, newMessage)) 
     where
-        newio = io >> introduce nameFlag changeFlag >> tab >> cInitMessage cbits
+        newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ cInitMessage cbits ++ "\n"
         (cbitNs, newMemory) = addCBits memory (length bits)
         cbits = map CBit cbitNs
 
 coMeasure :: CoMemorySet -> [QBit] -> ([CBit], CoMemorySet)
-coMeasure (memory, nameFlag, changeFlag, io) qbits = (cbits, (newMemory, nameFlag, False, newio))
+coMeasure (memory, nameFlag, changeFlag, message) qbits = (cbits, (newMemory, nameFlag, False, newMessage))
     where
-        newio = io >> introduce nameFlag changeFlag >> tab >> measureMessage qbits cbits
+        newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ measureMessage qbits cbits ++ "\n"
         (cbitNs, newMemory) = addCBits memory (length qbits)
         cbits = map CBit cbitNs
 
 coQGate :: CoMemorySet -> [QBit] -> QGateDeterminant -> ([QBit], CoMemorySet)
-coQGate (memory, nameFlag, changeFlag, io) qbits m = (qbits, (memory, nameFlag, False, newio))
+coQGate (memory, nameFlag, changeFlag, message) qbits m = (qbits, (memory, nameFlag, False, newMessage))
     where 
-        newio = io >> introduce nameFlag changeFlag >> tab >> qGateMessage qbits m
+        newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ qGateMessage qbits ++ "\n"
 
 coCGate :: CoMemorySet -> [CBit] -> СGateDeterminant -> ([CBit], CoMemorySet)
-coCGate (memory, nameFlag, changeFlag, io) cbits m = (cbits, (memory, nameFlag, False, newio))
+coCGate (memory, nameFlag, changeFlag, message) cbits m = (cbits, (memory, nameFlag, False, newMessage))
     where 
-        newio = io >> introduce nameFlag changeFlag >> tab >> cGateMessage cbits m
+        newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ cGateMessage cbits ++ "\n"
 
 coSendQMessage :: CoMemorySet -> [QBit] -> CoMemorySet
-coSendQMessage (memory, nameFlag, changeFlag, io) qbits = (newMemory, not nameFlag, True,  newio)
+coSendQMessage (memory, nameFlag, changeFlag, message) qbits = (newMemory, not nameFlag, True,  newMessage)
     where
-        newio = io >> introduce nameFlag changeFlag >> tab >> sendQMessageMessage qbits
+        newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ sendQMessageMessage qbits ++ "\n"
         newMemory = putInQPocket memory qbits
 
 coRecieveQMessage :: CoMemorySet -> ([QBit], CoMemorySet)
-coRecieveQMessage (memory, nameFlag, changeFlag, io) = (qbits, (memory, nameFlag, False, newio))
+coRecieveQMessage (memory, nameFlag, changeFlag, message) = (qbits, (memory, nameFlag, False, newMessage))
     where
-        newio = io >> introduce nameFlag changeFlag >> tab >> recieveQMessageMessage qbits
+        newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ recieveQMessageMessage qbits ++ "\n"
         qbits = popFromQPocket memory
 
 coSendCMessage :: CoMemorySet -> [CBit] -> CoMemorySet
-coSendCMessage (memory, nameFlag, changeFlag, io) cbits = (newMemory, not nameFlag, True,  newio)
+coSendCMessage (memory, nameFlag, changeFlag, message) cbits = (newMemory, not nameFlag, True,  newMessage)
     where
-        newio = io >> introduce nameFlag changeFlag >> tab >> sendCMessageMessage cbits
+        newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ sendCMessageMessage cbits ++ "\n"
         newMemory = putInCPocket memory cbits
 
 coRecieveCMessage :: CoMemorySet -> ([CBit], CoMemorySet)
-coRecieveCMessage (memory, nameFlag, changeFlag, io) = (cbits, (memory, nameFlag, False, newio))
+coRecieveCMessage (memory, nameFlag, changeFlag, message) = (cbits, (memory, nameFlag, False, newMessage))
     where
-        newio = io >> introduce nameFlag changeFlag >> tab >> recieveCMessageMessage cbits
+        newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ recieveCMessageMessage cbits ++ "\n"
         cbits = popFromCPocket memory

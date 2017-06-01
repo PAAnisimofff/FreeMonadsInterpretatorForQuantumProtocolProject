@@ -38,9 +38,9 @@ commandlog memory progM progS =
             (cbits, newMemory) = coRecieveCMessage memory
     Pure r -> memory
 
-
 -- вызов ad-hoc интепретатора
 simplyLog :: Program () -> Program () -> IO ()
-simplyLog alice bob = io >> actorsOut nameFlag
+simplyLog alice bob = putStr $ mewMessage
     where
-        (_,nameFlag,_, io) = commandlog emptyMemorySet alice bob
+        (_,nameFlag,_, message) = commandlog emptyMemorySet alice bob
+        mewMessage = message ++ actorsOut nameFlag
