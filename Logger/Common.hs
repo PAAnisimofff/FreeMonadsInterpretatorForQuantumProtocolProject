@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 module Logger.Common where
 
 import System.IO
@@ -7,6 +8,19 @@ import Data.String.Utils (replace)
 import Lang.Lang
 import Common.Matrix
 import Common.Complex
+
+-- комонадические функторы
+data InterpreterF rez = InterpreterF {
+    qInitHandle           :: ([Bool]                     -> ([QBit], rez)),
+    cInitHandle           :: ([Bool]                     -> ([CBit], rez)),
+    measureHandle         :: ([QBit]                     -> ([CBit], rez)),
+    qGateHandle           :: ([QBit] -> QGateDeterminant -> ([QBit], rez)),
+    cGateHandle           :: ([CBit] -> СGateDeterminant -> ([CBit], rez)),
+    sendQMessageHandle    ::  [QBit]                     ->          rez  ,
+    recieveQMessageHandle ::                                ([QBit], rez) ,
+    sendCMessageHandle    ::  [CBit]                     ->          rez  ,
+    recieveCMessageHandle ::                                ([CBit], rez) 
+} deriving Functor
 
 -- память
 data QMemory = QMemConstr [Int]
@@ -18,6 +32,10 @@ data Memory = MemConstr QMemory CMemory QPocket CPocket
 
 emptyMemory = MemConstr (QMemConstr []) (CMemConstr []) (QPoc []) (CPoc [])
 
+emptyMemorySet = (emptyMemory, True, True, return ()) :: CoMemorySet
+
+-- набор памяти
+type CoMemorySet = (Memory, Bool, Bool, IO ())
 
 -- общие функции
 
@@ -110,5 +128,66 @@ recieveCMessageMessage cbits = putStrLn $ "- Classic bits with numbers " ++ show
 qAbstractGateMessage :: [QBit] -> IO ()
 qAbstractGateMessage qbits = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " went through the Abstract Gate!"
 
-qGateMessage :: [QBit] -> (Matrix (Complex Double)) -> IO ()
+qGateMessage :: [QBit] -> QGateDeterminant -> IO ()
 qGateMessage qbits m = putStrLn $ "- Qubits with numbers " ++ showQBits qbits ++ " went through the gate with matrix:\n\n\t" ++ (replace "\n" "\n\t" (show m))
+
+cGateMessage :: [CBit] -> СGateDeterminant -> IO ()
+cGateMessage cbits m = putStrLn $ "- Classic bits with numbers " ++ showCBits cbits ++ " went through the gate."
+
+
+-- реализация обработчиков комонадического интерпретатора
+
+coQInit :: CoMemorySet -> [Bool] -> ([QBit], CoMemorySet)
+coQInit (memory, nameFlag, changeFlag, io) bits = (qbits, (newMemory, nameFlag, False, newio)) 
+    where
+        newio = io >> introduce nameFlag changeFlag >> tab >> qInitMessage qbits
+        (qbitNs, newMemory) = addQBits memory (length bits)
+        qbits = map QBit qbitNs
+
+coCInit :: CoMemorySet -> [Bool] -> ([CBit], CoMemorySet)
+coCInit (memory, nameFlag, changeFlag, io) bits = (cbits, (newMemory, nameFlag, False, newio)) 
+    where
+        newio = io >> introduce nameFlag changeFlag >> tab >> cInitMessage cbits
+        (cbitNs, newMemory) = addCBits memory (length bits)
+        cbits = map CBit cbitNs
+
+coMeasure :: CoMemorySet -> [QBit] -> ([CBit], CoMemorySet)
+coMeasure (memory, nameFlag, changeFlag, io) qbits = (cbits, (newMemory, nameFlag, False, newio))
+    where
+        newio = io >> introduce nameFlag changeFlag >> tab >> measureMessage qbits cbits
+        (cbitNs, newMemory) = addCBits memory (length qbits)
+        cbits = map CBit cbitNs
+
+coQGate :: CoMemorySet -> [QBit] -> QGateDeterminant -> ([QBit], CoMemorySet)
+coQGate (memory, nameFlag, changeFlag, io) qbits m = (qbits, (memory, nameFlag, False, newio))
+    where 
+        newio = io >> introduce nameFlag changeFlag >> tab >> qGateMessage qbits m
+
+coCGate :: CoMemorySet -> [CBit] -> СGateDeterminant -> ([CBit], CoMemorySet)
+coCGate (memory, nameFlag, changeFlag, io) cbits m = (cbits, (memory, nameFlag, False, newio))
+    where 
+        newio = io >> introduce nameFlag changeFlag >> tab >> cGateMessage cbits m
+
+coSendQMessage :: CoMemorySet -> [QBit] -> CoMemorySet
+coSendQMessage (memory, nameFlag, changeFlag, io) qbits = (newMemory, not nameFlag, True,  newio)
+    where
+        newio = io >> introduce nameFlag changeFlag >> tab >> sendQMessageMessage qbits
+        newMemory = putInQPocket memory qbits
+
+coRecieveQMessage :: CoMemorySet -> ([QBit], CoMemorySet)
+coRecieveQMessage (memory, nameFlag, changeFlag, io) = (qbits, (memory, nameFlag, False, newio))
+    where
+        newio = io >> introduce nameFlag changeFlag >> tab >> recieveQMessageMessage qbits
+        qbits = popFromQPocket memory
+
+coSendCMessage :: CoMemorySet -> [CBit] -> CoMemorySet
+coSendCMessage (memory, nameFlag, changeFlag, io) cbits = (newMemory, not nameFlag, True,  newio)
+    where
+        newio = io >> introduce nameFlag changeFlag >> tab >> sendCMessageMessage cbits
+        newMemory = putInCPocket memory cbits
+
+coRecieveCMessage :: CoMemorySet -> ([CBit], CoMemorySet)
+coRecieveCMessage (memory, nameFlag, changeFlag, io) = (cbits, (memory, nameFlag, False, newio))
+    where
+        newio = io >> introduce nameFlag changeFlag >> tab >> recieveCMessageMessage cbits
+        cbits = popFromCPocket memory

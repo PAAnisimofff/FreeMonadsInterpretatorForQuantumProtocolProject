@@ -34,93 +34,24 @@ instance Pairing f g => Pairing (Cofree f) (Free g) where
     pair p (a :< _ ) (Pure x)  = p a x
     pair p (_ :< fs) (Free gs) = pair (pair p) fs gs
 
--- комонадические функторы
-data InterpreterF rez = InterpreterF {
-    qInitHandle           :: ([Bool]                              -> ([QBit], rez)),
-    cInitHandle           :: ([Bool]                              -> ([CBit], rez)),
-    measureHandle         :: ([QBit]                              -> ([CBit], rez)),
-    qGateHandle           :: ([QBit] -> (Matrix (Complex Double)) -> ([QBit], rez)),
-    sendQMessageHandle    ::  [QBit]                              ->          rez  ,
-    recieveQMessageHandle ::                                         ([QBit], rez) ,
-    sendCMessageHandle    ::  [CBit]                              ->          rez  ,
-    recieveCMessageHandle ::                                         ([CBit], rez) 
-} deriving Functor
+
 
 instance Pairing InterpreterF Command where
-    pair f (InterpreterF qi _ _ _ _ _ _ _ ) (QInit           x   k) = pair f (qi x  )   k
-    pair f (InterpreterF _ ci _ _ _ _ _ _ ) (CInit           x   k) = pair f (ci x  )   k
-    pair f (InterpreterF _ _ m  _ _ _ _ _ ) (Measure         x   k) = pair f (m  x  )   k
-    pair f (InterpreterF _ _ _ qg _ _ _ _ ) (QGate           x y k) = pair f (qg x y)   k
-    pair f (InterpreterF _ _ _ _ sq _ _ _ ) (SendQMessage    x   k) =      f (sq x  )   k
-    pair f (InterpreterF _ _ _ _ _ rq _ _ ) (RecieveQMessage     k) = pair f  rq        k
-    pair f (InterpreterF _ _ _ _ _ _ sc _ ) (SendCMessage    x   k) =      f (sc x  )   k
-    pair f (InterpreterF _ _ _ _ _ _ _ rc ) (RecieveCMessage     k) = pair f  rc        k
-
-type CoProgram a = Cofree InterpreterF a
-
--- набор памяти
-type CoMemorySet = (Memory, Bool, Bool, IO ())
+    pair f (InterpreterF qi _ _ _ _ _ _ _ _ ) (QInit           x   k) = pair f (qi x  )   k
+    pair f (InterpreterF _ ci _ _ _ _ _ _ _ ) (CInit           x   k) = pair f (ci x  )   k
+    pair f (InterpreterF _ _ m  _ _ _ _ _ _ ) (Measure         x   k) = pair f (m  x  )   k
+    pair f (InterpreterF _ _ _ qg _ _ _ _ _ ) (QGate           x y k) = pair f (qg x y)   k
+    pair f (InterpreterF _ _ _ _ cg _ _ _ _ ) (CGate           x y k) = pair f (cg x y)   k
+    pair f (InterpreterF _ _ _ _ _ sq _ _ _ ) (SendQMessage    x   k) =      f (sq x  )   k
+    pair f (InterpreterF _ _ _ _ _ _ rq _ _ ) (RecieveQMessage     k) = pair f  rq        k
+    pair f (InterpreterF _ _ _ _ _ _ _ sc _ ) (SendCMessage    x   k) =      f (sc x  )   k
+    pair f (InterpreterF _ _ _ _ _ _ _ _ rc ) (RecieveCMessage     k) = pair f  rc        k
 
 -- собирает вместе монаду и комонаду
-goTogether :: CoProgram CoMemorySet
-goTogether = coiter next start
+goTogether :: Cofree InterpreterF CoMemorySet
+goTogether = coiter next emptyMemorySet
     where
-        next w = InterpreterF (coQInit w) (coCInit w) (coMeasure w) (coQGate w) (coSendQMessage w) (coRecieveQMessage w) (coSendCMessage w) (coRecieveCMessage w)
-        start = (emptyMemory, True, True, return ())
-
-
--- реализация обработчиков комонадического интерпретатора
-
-coQInit :: CoMemorySet -> [Bool] -> ([QBit], CoMemorySet)
-coQInit (memory, nameFlag, changeFlag, io) bits = (qbits, (newMemory, nameFlag, False, newio)) 
-    where
-        newio = io >> introduce nameFlag changeFlag >> tab >> qInitMessage qbits
-        (qbitNs, newMemory) = addQBits memory (length bits)
-        qbits = map QBit qbitNs
-
-coCInit :: CoMemorySet -> [Bool] -> ([CBit], CoMemorySet)
-coCInit (memory, nameFlag, changeFlag, io) bits = (cbits, (newMemory, nameFlag, False, newio)) 
-    where
-        newio = io >> introduce nameFlag changeFlag >> tab >> cInitMessage cbits
-        (cbitNs, newMemory) = addCBits memory (length bits)
-        cbits = map CBit cbitNs
-
-coMeasure :: CoMemorySet -> [QBit] -> ([CBit], CoMemorySet)
-coMeasure (memory, nameFlag, changeFlag, io) qbits = (cbits, (newMemory, nameFlag, False, newio))
-    where
-        newio = io >> introduce nameFlag changeFlag >> tab >> measureMessage qbits cbits
-        (cbitNs, newMemory) = addCBits memory (length qbits)
-        cbits = map CBit cbitNs
-
-coQGate :: CoMemorySet -> [QBit] -> (Matrix (Complex Double)) -> ([QBit], CoMemorySet)
-coQGate (memory, nameFlag, changeFlag, io) qbits m = (qbits, (memory, nameFlag, False, newio))
-    where 
-        newio = io >> introduce nameFlag changeFlag >> tab >> qGateMessage qbits m
-
-coSendQMessage :: CoMemorySet -> [QBit] -> CoMemorySet
-coSendQMessage (memory, nameFlag, changeFlag, io) qbits = (newMemory, not nameFlag, True,  newio)
-    where
-        newio = io >> introduce nameFlag changeFlag >> tab >> sendQMessageMessage qbits
-        newMemory = putInQPocket memory qbits
-
-coRecieveQMessage :: CoMemorySet -> ([QBit], CoMemorySet)
-coRecieveQMessage (memory, nameFlag, changeFlag, io) = (qbits, (memory, nameFlag, False, newio))
-    where
-        newio = io >> introduce nameFlag changeFlag >> tab >> recieveQMessageMessage qbits
-        qbits = popFromQPocket memory
-
-coSendCMessage :: CoMemorySet -> [CBit] -> CoMemorySet
-coSendCMessage (memory, nameFlag, changeFlag, io) cbits = (newMemory, not nameFlag, True,  newio)
-    where
-        newio = io >> introduce nameFlag changeFlag >> tab >> sendCMessageMessage cbits
-        newMemory = putInCPocket memory cbits
-
-coRecieveCMessage :: CoMemorySet -> ([CBit], CoMemorySet)
-coRecieveCMessage (memory, nameFlag, changeFlag, io) = (cbits, (memory, nameFlag, False, newio))
-    where
-        newio = io >> introduce nameFlag changeFlag >> tab >> recieveCMessageMessage cbits
-        cbits = popFromCPocket memory
-
+        next w = InterpreterF (coQInit w) (coCInit w) (coMeasure w) (coQGate w) (coCGate w) (coSendQMessage w) (coRecieveQMessage w) (coSendCMessage w) (coRecieveCMessage w)
 
 -- вызов комонадического интерпретатора
 simplyLogCo :: Program () -> Program () -> IO ()
