@@ -12,16 +12,19 @@ alice = do
     c <- pauliYSingle a
     sendQMessage [b, c]
     e <- cInitSingle False
+    e <- cGateSingle e (not)
     sendCMessageSingle e
     return ()
 
 -- скрипт Боба
 bob :: Program ()
 bob = do
-    [a, b] <- recieveQMessage
-    c <- pauliX [a, b]
+    a <- recieveQMessage
+    c <- pauliX a
     sendQMessage c
     e <- recieveCMessageSingle
+    d <- cInitSingle False
+    b <- cGate [e, d] ((\x -> [x]) . or)
     return ()
 
 -- ad-hoc интерпретатор
