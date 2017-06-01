@@ -5,6 +5,8 @@ import Control.Monad.Free
 import Common.Matrix
 import Common.Complex
 
+-- квантовые
+
 -- для списков
 hadamardSingle :: QBit -> Program QBit
 hadamardSingle qbit = singler . liftF $ QGate [qbit] m id 
@@ -66,3 +68,12 @@ cnot qbitsF qbitsS = liftF $ QGate (qbitsF ++ qbitsS) m id
     where
         mSize = 2 ^ (length qbitsF + length qbitsS) 
         m = matrix mSize mSize (\ (x,y) -> 0 :+ 0)
+
+
+-- классические
+
+cGate :: [CBit] -> СGateDeterminant -> Program [CBit]
+cGate cbits f = liftF $ CGate cbits f id
+
+cGateSingle :: CBit -> (Bool -> Bool) -> Program CBit
+cGateSingle cbit f = singler . liftF $ CGate [cbit] ((\x -> [x]) . f . (\[x] -> x)) id
