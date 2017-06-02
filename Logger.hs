@@ -1,26 +1,8 @@
-{-# LANGUAGE DeriveFunctor #-}
-module Logger.Common where
+module Logger where
 
-import System.IO
--- import Control.Monad.Free
--- import Control.Comonad.Cofree
 import Data.String.Utils (replace)
 import Lang.Lang
-import Common.Matrix
-import Common.Complex
-
--- комонадические функторы
-data InterpreterF rez = InterpreterF {
-    qInitHandle           :: ([Bool]                     -> ([QBit], rez)),
-    cInitHandle           :: ([Bool]                     -> ([CBit], rez)),
-    measureHandle         :: ([QBit]                     -> ([CBit], rez)),
-    qGateHandle           :: ([QBit] -> QGateDeterminant -> ([QBit], rez)),
-    cGateHandle           :: ([CBit] -> СGateDeterminant -> ([CBit], rez)),
-    sendQMessageHandle    ::  [QBit]                     ->          rez  ,
-    recieveQMessageHandle ::                                ([QBit], rez) ,
-    sendCMessageHandle    ::  [CBit]                     ->          rez  ,
-    recieveCMessageHandle ::                                ([CBit], rez) 
-} deriving Functor
+import Lang.Interpreters
 
 -- память
 data QMemory = QMemConstr [Int]
@@ -30,7 +12,7 @@ data CPocket = CPoc [CBit]
 
 data Memory = MemConstr QMemory CMemory QPocket CPocket
 
-type CoMemorySet = (Memory, Bool, Bool, String)
+type MemorySet = (Memory, Bool, Bool, String)
 
 emptyString = ""
 
@@ -93,6 +75,7 @@ showCBits cbits = show $ map exractCNumber cbits
 -- всяко
 tab :: String
 tab = "\t"
+
 -- актор
 
 introduce :: Bool -> Bool -> String
@@ -136,59 +119,75 @@ cGateMessage :: [CBit] -> String
 cGateMessage cbits = "- Classic bits with numbers " ++ showCBits cbits ++ " went through some gate."
 
 
--- реализация обработчиков комонадического интерпретатора
+-- реализация обработчиков интерпретатора
 
-coQInit :: CoMemorySet -> [Bool] -> ([QBit], CoMemorySet)
-coQInit (memory, nameFlag, changeFlag, message) bits = (qbits, (newMemory, nameFlag, False, newMessage)) 
+qInitLogger :: MemorySet -> [Bool] -> ([QBit], MemorySet)
+qInitLogger (memory, nameFlag, changeFlag, message) bits = (qbits, (newMemory, nameFlag, False, newMessage)) 
     where
         newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ qInitMessage qbits ++ "\n"
         (qbitNs, newMemory) = addQBits memory (length bits)
         qbits = map QBit qbitNs
 
-coCInit :: CoMemorySet -> [Bool] -> ([CBit], CoMemorySet)
-coCInit (memory, nameFlag, changeFlag, message) bits = (cbits, (newMemory, nameFlag, False, newMessage)) 
+cInitLogger :: MemorySet -> [Bool] -> ([CBit], MemorySet)
+cInitLogger (memory, nameFlag, changeFlag, message) bits = (cbits, (newMemory, nameFlag, False, newMessage)) 
     where
         newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ cInitMessage cbits ++ "\n"
         (cbitNs, newMemory) = addCBits memory (length bits)
         cbits = map CBit cbitNs
 
-coMeasure :: CoMemorySet -> [QBit] -> ([CBit], CoMemorySet)
-coMeasure (memory, nameFlag, changeFlag, message) qbits = (cbits, (newMemory, nameFlag, False, newMessage))
+measureLogger :: MemorySet -> [QBit] -> ([CBit], MemorySet)
+measureLogger (memory, nameFlag, changeFlag, message) qbits = (cbits, (newMemory, nameFlag, False, newMessage))
     where
         newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ measureMessage qbits cbits ++ "\n"
         (cbitNs, newMemory) = addCBits memory (length qbits)
         cbits = map CBit cbitNs
 
-coQGate :: CoMemorySet -> [QBit] -> QGateDeterminant -> ([QBit], CoMemorySet)
-coQGate (memory, nameFlag, changeFlag, message) qbits m = (qbits, (memory, nameFlag, False, newMessage))
+qGateLogger :: MemorySet -> [QBit] -> QGateDeterminant -> ([QBit], MemorySet)
+qGateLogger (memory, nameFlag, changeFlag, message) qbits m = (qbits, (memory, nameFlag, False, newMessage))
     where 
         newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ qGateMessage qbits ++ "\n"
 
-coCGate :: CoMemorySet -> [CBit] -> СGateDeterminant -> ([CBit], CoMemorySet)
-coCGate (memory, nameFlag, changeFlag, message) cbits m = (cbits, (memory, nameFlag, False, newMessage))
+cGateLogger :: MemorySet -> [CBit] -> СGateDeterminant -> ([CBit], MemorySet)
+cGateLogger (memory, nameFlag, changeFlag, message) cbits m = (cbits, (memory, nameFlag, False, newMessage))
     where 
         newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ cGateMessage cbits ++ "\n"
 
-coSendQMessage :: CoMemorySet -> [QBit] -> CoMemorySet
-coSendQMessage (memory, nameFlag, changeFlag, message) qbits = (newMemory, not nameFlag, True,  newMessage)
+sendQMessageLogger :: MemorySet -> [QBit] -> MemorySet
+sendQMessageLogger (memory, nameFlag, changeFlag, message) qbits = (newMemory, not nameFlag, True,  newMessage)
     where
         newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ sendQMessageMessage qbits ++ "\n"
         newMemory = putInQPocket memory qbits
 
-coRecieveQMessage :: CoMemorySet -> ([QBit], CoMemorySet)
-coRecieveQMessage (memory, nameFlag, changeFlag, message) = (qbits, (memory, nameFlag, False, newMessage))
+recieveQMessageLogger :: MemorySet -> ([QBit], MemorySet)
+recieveQMessageLogger (memory, nameFlag, changeFlag, message) = (qbits, (memory, nameFlag, False, newMessage))
     where
         newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ recieveQMessageMessage qbits ++ "\n"
         qbits = popFromQPocket memory
 
-coSendCMessage :: CoMemorySet -> [CBit] -> CoMemorySet
-coSendCMessage (memory, nameFlag, changeFlag, message) cbits = (newMemory, not nameFlag, True,  newMessage)
+sendCMessageLogger :: MemorySet -> [CBit] -> MemorySet
+sendCMessageLogger (memory, nameFlag, changeFlag, message) cbits = (newMemory, not nameFlag, True,  newMessage)
     where
         newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ sendCMessageMessage cbits ++ "\n"
         newMemory = putInCPocket memory cbits
 
-coRecieveCMessage :: CoMemorySet -> ([CBit], CoMemorySet)
-coRecieveCMessage (memory, nameFlag, changeFlag, message) = (cbits, (memory, nameFlag, False, newMessage))
+recieveCMessageLogger :: MemorySet -> ([CBit], MemorySet)
+recieveCMessageLogger (memory, nameFlag, changeFlag, message) = (cbits, (memory, nameFlag, False, newMessage))
     where
         newMessage = message ++ introduce nameFlag changeFlag ++ tab ++ recieveCMessageMessage cbits ++ "\n"
         cbits = popFromCPocket memory
+
+
+logger :: MemorySet -> InterpreterF MemorySet
+logger m = InterpreterF (qInitLogger m) (cInitLogger m) (measureLogger m) (qGateLogger m) (cGateLogger m) (sendQMessageLogger m) (recieveQMessageLogger m) (sendCMessageLogger m) (recieveCMessageLogger m)
+
+-- вызов комонадного логгера
+comonadLogger :: Program () -> Program () -> String
+comonadLogger script1 script2 = message 
+    where
+        (_, _, _, message) = comonadInterpreterRun (logger) emptyMemorySet script1 script2
+
+-- вызов ad-hoc интерпретатора
+adhocLogger :: Program () -> Program () -> String
+adhocLogger script1 script2 = message 
+    where
+        (_, _, _, message) = adhocInterpreterRun (logger) emptyMemorySet script1 script2
