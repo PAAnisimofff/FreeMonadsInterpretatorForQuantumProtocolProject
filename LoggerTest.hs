@@ -2,8 +2,7 @@ module LoggerTest where
 
 import Lang.Lang
 import Lang.Gates
-import Logger.AdHoc
-import Logger.Comonad
+import Logger
 
 -- скрипт Алисы
 alice :: Program ()
@@ -28,7 +27,7 @@ bob = do
     return ()
 
 -- ad-hoc интерпретатор
-adhoc = simplyLog alice bob
+adhoc = putStr $ adhocLogger alice bob
 
 -- комонадический интерпретатор
-comonad = simplyLogCo alice bob
+comonad = putStr $ comonadLogger alice bob
