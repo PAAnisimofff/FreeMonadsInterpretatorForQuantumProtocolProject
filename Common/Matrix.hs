@@ -14,7 +14,9 @@ module Common.Matrix (
     -- ** Специальные матрицы
   , zero
   , identity
+  , identityC
   , permMatrix
+  , permMatrixC
     -- * Доступ к элементам
   , getElem , (!)
   , getRow  , getCol
@@ -44,6 +46,8 @@ module Common.Matrix (
   , trace , diagProd
     -- ** детерминанты
   , detLaplace
+  , tensor
+  , matTolist
   ) where
 
 import Data.Monoid
@@ -133,6 +137,8 @@ matrix n m f = M n m $ V.generate n $ \i -> V.generate m $ \j -> f (i+1,j+1)
 identity :: Num a => Int -> Matrix a
 identity n = matrix n n $ \(i,j) -> if i == j then 1 else 0
 
+identityC n = matrix n n $ \(i,j) -> if i == j then 1:+0 else 0:+0
+
 -- |Создает матрицу из непустого списка.
 --  В списке нужно хотя бы m x n элементов.
 --  Пример:
@@ -172,6 +178,7 @@ rowVector v = M 1 (V.length v) $ V.singleton v
 colVector :: V.Vector a -> Matrix a
 colVector v = M (V.length v) 1 $ V.map V.singleton v
 
+
 -- | /O(rows*cols)/. Матрица перестановки.
 --
 -- > permMatrix n i j =
@@ -201,6 +208,16 @@ permMatrix n r1 r2 = matrix n n f
    | i == r2 = if j == r1 then 1 else 0
    | i == j = 1
    | otherwise = 0
+
+
+permMatrixC n r1 r2 | r1 == r2 = identityC n
+permMatrixC n r1 r2 = matrix n n f
+ where
+  f (i,j)
+   | i == r1 = if j == r2 then 1:+0 else 0:+0 
+   | i == r2 = if j == r1 then 1:+0 else 0:+0 
+   | i == j = 1:+0 
+   | otherwise = 0:+0 
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -382,6 +399,17 @@ multStd a1@(M n m _) a2@(M n' m' _)
    | m /= n' = error $ "Multiplication of " ++ sizeStr n m ++ " and "
                     ++ sizeStr n' m' ++ " matrices."
    | otherwise = multStd_ a1 a2
+
+
+{--multCstd :: Num a => Matrix a -> Matrix a -> Matrix (Complex a)
+multCstd a1@(M n m _) a2@(M n' m' _)
+   -- Проверка размеров
+   | m /= n' = error $ "Multiplication of " ++ sizeStr n m ++ " and "
+                    ++ sizeStr n' m' ++ " matrices."
+   | otherwise = multCstd_ a1 a2
+
+--multCstd_ :: Num a => Matrix a -> Matrix a -> Matrix (Complex a)
+multCstd_ a1@(M n m _) a2@(M _ m' _) = matrix n m' $ \(i,j) -> sum [ a1 ! (i,k) * a2 ! (k,j) | k <- [1 .. m] ]-}
 
 -- | без проверки размеров (не испольозовать)
 multStd_ :: Num a => Matrix a -> Matrix a -> Matrix a
@@ -591,3 +619,12 @@ flatten m = foldl1 (<->) $ map (foldl1 (<|>) . (\i -> getRow i m)) [1..(nrows m)
 tensor :: Num a => Matrix a -> Matrix a -> Matrix a
 tensor a b = flatten (fmap (\y->scaleMatrix y b ) a)
 
+matTolist :: Matrix (Complex Double) -> [Complex Double]
+matTolist mcd = V.toList $ getCol 1 mcd
+
+
+
+mY mSize = matrix mSize mSize (\ (i,j) -> if i==j then 0 :+ 0 else if i==1 && j==2 then 0:+(-1) else 0:+1)
+mX mSize = matrix mSize mSize (\(i,j) -> if i==j then 0 :+ 0 else 1 :+ 0)
+mZ mSize = matrix mSize mSize (\ (i,j) -> if i/=j then 0 :+ 0 else if i==1 && j==1 then 1:+0 else (-1):+0)
+vec = fromList 1 1 [1.0:+5.0, 4.0:+ 6.0]
