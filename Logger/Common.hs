@@ -23,48 +23,30 @@ data InterpreterF rez = InterpreterF {
 } deriving Functor
 
 -- память
-data QMemory = QMemConstr [Int]
-data CMemory = CMemConstr [Int]
 data QPocket = QPoc [QBit]
 data CPocket = CPoc [CBit]
 
-data Memory = MemConstr QMemory CMemory QPocket CPocket
+data Memory = MemConstr Int Int QPocket CPocket
 
 type CoMemorySet = (Memory, Bool, Bool, String)
 
 emptyString = ""
 
-emptyMemory = MemConstr (QMemConstr []) (CMemConstr []) (QPoc []) (CPoc [])
+initialCounter = 0
+
+emptyMemory = MemConstr initialCounter initialCounter (QPoc []) (CPoc [])
 
 emptyMemorySet = (emptyMemory, True, True, emptyString)
 
 -- общие функции
 
-getQMemoryList :: Memory -> [Int]
-getQMemoryList (MemConstr (QMemConstr qmemory) _ _ _) = qmemory
-
-getCMemoryList :: Memory -> [Int]
-getCMemoryList (MemConstr _ (CMemConstr cmemory) _ _) = cmemory
-
-setQMemoryList :: Memory -> [Int] -> Memory
-setQMemoryList (MemConstr _ cm qp cp) list = MemConstr (QMemConstr list) cm qp cp
-
-setCMemoryList :: Memory -> [Int] -> Memory
-setCMemoryList (MemConstr qm _ qp cp) list = MemConstr qm (CMemConstr list) qp cp
-
 addQBits :: Memory -> Int -> ([Int], Memory)
-addQBits (MemConstr (QMemConstr qm) cm qp cp) n = let last = endOrZero qm in
-    let news = [last + 1 .. last + n] in
-        (news, MemConstr (QMemConstr (qm ++ news)) cm qp cp)
+addQBits (MemConstr qCounter cm qp cp) n = 
+    ([qCounter + 1 .. qCounter + n], MemConstr (qCounter + n) cm qp cp)
 
 addCBits :: Memory -> Int -> ([Int], Memory)
-addCBits (MemConstr qm (CMemConstr cm) qp cp) n = let last = endOrZero cm in
-    let news = [last + 1 .. last + n] in
-        (news, MemConstr qm (CMemConstr (cm ++ news)) qp cp)
-
-endOrZero :: [Int] -> Int
-endOrZero [] = 0
-endOrZero list  = last list 
+addCBits (MemConstr qm cCounter qp cp) n = 
+    ([cCounter + 1 .. cCounter + n], MemConstr qm (cCounter + n) qp cp)
 
 putInQPocket :: Memory -> [QBit] -> Memory
 putInQPocket (MemConstr qm cm _ cp) x =  MemConstr qm cm (QPoc x) cp
