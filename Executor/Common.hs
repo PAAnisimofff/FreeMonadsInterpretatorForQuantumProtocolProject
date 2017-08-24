@@ -8,7 +8,10 @@ import Data.String.Utils (replace)
 import Lang.Lang
 import Common.Matrix
 import Common.Complex
+import System.Random
+import Data.Foldable
 import qualified Data.Vector as V
+import qualified Data.Sequence as S
 
 -- комонадические функторы
 data InterpreterF rez = InterpreterF {
@@ -24,8 +27,8 @@ data InterpreterF rez = InterpreterF {
 } deriving Functor
 
 -- память
-data QMemory = QMemConstr [(Complex Double, Complex Double)]
-data CMemory = CMemConstr [Bool]
+data QMemory = QMemConstr (S.Seq (Complex Double, Complex Double))
+data CMemory = CMemConstr (S.Seq Bool)
 data QPocket = QPoc [QBit]
 data CPocket = CPoc [CBit]
 
@@ -35,30 +38,30 @@ type CoMemorySet = (Memory, Bool, Bool)
 
 emptyString = ""
 
-emptyMemory = MemConstr (QMemConstr []) (CMemConstr []) (QPoc []) (CPoc [])
+emptyMemory = MemConstr (QMemConstr S.empty) (CMemConstr S.empty) (QPoc []) (CPoc [])
 
 emptyMemorySet = (emptyMemory, True, True)
 
 -- общие функции
 
-getQMemoryList :: Memory -> [(Complex Double, Complex Double)]
+getQMemoryList :: Memory -> S.Seq (Complex Double, Complex Double)
 getQMemoryList (MemConstr (QMemConstr qmemory) _ _ _) = qmemory
 
-getCMemoryList :: Memory -> [Bool]
+getCMemoryList :: Memory -> S.Seq Bool
 getCMemoryList (MemConstr _ (CMemConstr cmemory) _ _) = cmemory
 
-setQMemoryList :: Memory -> [(Complex Double, Complex Double)] -> Memory
+setQMemoryList :: Memory -> S.Seq (Complex Double, Complex Double) -> Memory
 setQMemoryList (MemConstr _ cm qp cp) list = MemConstr (QMemConstr list) cm qp cp
 
-setCMemoryList :: Memory -> [Bool] -> Memory
+setCMemoryList :: Memory -> S.Seq Bool -> Memory
 setCMemoryList (MemConstr qm _ qp cp) list = MemConstr qm (CMemConstr list) qp cp
 
-addQBits :: Memory -> [(Complex Double, Complex Double)] -> Memory
-addQBits (MemConstr (QMemConstr qm) cm qp cp) income = MemConstr (QMemConstr (qm ++ income)) cm qp cp
+addQBits :: Memory -> S.Seq (Complex Double, Complex Double) -> Memory
+addQBits (MemConstr (QMemConstr qm) cm qp cp) income = MemConstr (QMemConstr (qm S.>< income)) cm qp cp
         
 
-addCBits :: Memory -> [Bool] -> Memory
-addCBits (MemConstr qm (CMemConstr cm) qp cp) income = MemConstr qm (CMemConstr (cm ++ income)) qp cp
+addCBits :: Memory -> S.Seq Bool -> Memory
+addCBits (MemConstr qm (CMemConstr cm) qp cp) income = MemConstr qm (CMemConstr (cm S.>< income)) qp cp
 
 endOrZero :: [Int] -> Int
 endOrZero [] = 0
@@ -87,19 +90,50 @@ showCBits cbits = show $ map exractCNumber cbits
 
 boolToCD :: Bool -> (Complex Double, Complex Double)
 boolToCD True = (1.0:+0.0, 0.0:+0.0)
-boolToCD False = (0.0:+0.0, 1.0:+0.0)
+boolToCD False = (0.0:+0.0, 0.0:+0.0)
 
-double_to_list :: (Complex Double, Complex Double) -> [Complex Double]
-double_to_list (cd1, cd2) = [cd1, cd2]
+double_to_seq :: (Complex Double, Complex Double) -> S.Seq (Complex Double)
+double_to_seq (cd1, cd2) = S.fromList [cd1, cd2]
 
-boolsToCDs :: [Bool] -> [(Complex Double, Complex Double)]
-boolsToCDs bs = map boolToCD bs
-
-cdToBool :: [Complex Double] -> [Bool]
-cdToBool [1.0:+0.0, 0.0:+0.0] = [True]
-cdToBool [0.0:+0.0, 1.0:+0.0] = [False]
+boolsToCDs :: S.Seq Bool -> S.Seq (Complex Double, Complex Double)
+boolsToCDs bs = fmap boolToCD bs
 
 
+measureQbit :: (Complex Double, Complex Double) -> IO ()
+measureQbit qb = do
+    rio <- randomRIO (0.0, 1.0)
+    print $ useRnd qb rio
+
+measureQbits :: S.Seq (Complex Double, Complex Double) -> IO ()
+measureQbits qbs = do
+    rio <- randomRIO (0.0, 1.0)
+    print $ useRnds qbs rio
+
+useRnd :: (Complex Double, Complex Double) -> Double -> Bool
+useRnd (a,b) r = if realPart ((abs a)^2) < r then True else False
+
+useRnds :: S.Seq (Complex Double, Complex Double) -> Double -> Bool
+useRnds cds r = foldr1 (||) (fmap (`useRnd` r) cds)
+
+boo = S.fromList [(11,32), (43,54)]
+
+--bl = S.update 2 True boo
+
+adjustSome :: [Int] -> (a -> a) -> S.Seq a -> S.Seq a
+adjustSome [] _ s1 = s1
+adjustSome indices func s1 = adjustSome (tail indices) func (S.adjust func (head indices) s1)
+
+
+throughGate :: Num a => (a, a) -> Matrix a -> (a, a)
+throughGate (x, y) m = (new ! (1, 1), new ! (2, 1))
+    where
+        new = m * colVector (V.fromList [x, y])
+
+updateMem :: Num a => S.Seq (a, a)
+updateMem = adjustSome [0, 1] (`throughGate` (zero 2 2)) (S.fromList [(11,32), (43,54)]) -- Это тестовая вещь
+
+
+-------------Это наверное может и не нужно-----------------|
 searchSafe :: [Int] -> [a] -> [a]
 searchSafe indices xs = go indices 0 xs
    where
@@ -108,32 +142,32 @@ searchSafe indices xs = go indices 0 xs
    go _      _ []               = error "index not found"
    go (i:is) j yys@(y:_) | i==j = y : go is  j     yys
    go iis    j (_:ys)           =     go iis (j+1) ys
-
+-----------------------------------------------------------------|
 
 searchUnsafe :: [Int] -> [a] -> [a]
 searchUnsafe indexes list = [list!!x | x <- indexes]
 
-cd = [1.0:+0.0, 0.0:+0.0, 0.0:+0.0, 1.0:+0.0]
--- сообщения
+--cd = [1.0:+0.0, 0.0:+0.0, 0.0:+0.0, 1.0:+0.0]
+
 
 -- всяко
 tab :: String
 tab = "\t"
 
-
+-- Осталось общие функции  засунуть сюда
 -- реализация обработчиков комонадического интерпретатора
 
-coQInit :: CoMemorySet -> [Bool] -> CoMemorySet
+coQInit :: CoMemorySet -> S.Seq Bool -> CoMemorySet
 coQInit (memory, nameFlag, changeFlag) bits = (newMemory, nameFlag, False)
     where
         newMemory = addQBits memory (boolsToCDs bits)
 
-coCInit :: CoMemorySet -> [Bool] -> CoMemorySet
+coCInit :: CoMemorySet -> S.Seq Bool -> CoMemorySet
 coCInit (memory, nameFlag, changeFlag) bits = (newMemory, nameFlag, False)
     where
         newMemory = addCBits memory bits
 
-coCGate :: CoMemorySet -> [CBit] -> СGateDeterminant -> CoMemorySet
+coCGate :: CoMemorySet -> S.Seq CBit -> СGateDeterminant -> CoMemorySet
 coCGate (memory, nameFlag, changeFlag) cbits m = (memory, nameFlag, False)
     
 
