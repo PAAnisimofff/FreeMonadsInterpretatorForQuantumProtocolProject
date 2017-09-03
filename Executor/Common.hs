@@ -106,16 +106,30 @@ measureQbit qb = do
 
 measureQbits :: S.Seq (Complex Double, Complex Double) -> IO ()
 measureQbits qbs = do
-    rio <- randomRIO (0.0, 1.0)
-    print $ useRnds qbs rio
+    rios <- randomList (0.0, 1.0)
+    print $ useRnds qbs (take (S.length qbs) rios)
+
+------------Вариант выдающий на печать результат вместе со случайными числами
+measureQbits' :: S.Seq (Complex Double, Complex Double) -> IO ()
+measureQbits' qbs = do
+    rios <- randomList (0.0, 1.0)
+    print $ (useRnds' qbs (take (S.length qbs) rios), take (S.length qbs) rios)
+-------------
+randomList :: (Double, Double) -> IO [Double]
+randomList range = getStdGen >>= return . randomRs range
 
 useRnd :: (Complex Double, Complex Double) -> Double -> Bool
 useRnd (a,b) r = if realPart ((abs a)^2) < r then True else False
 
-useRnds :: S.Seq (Complex Double, Complex Double) -> Double -> Bool
-useRnds cds r = foldr1 (||) (fmap (`useRnd` r) cds)
+useRnds :: S.Seq (Complex Double, Complex Double) -> [Double] -> Bool
+useRnds cds rs = foldr1 (||) (S.zipWith useRnd cds (S.fromList rs))
 
-boo = S.fromList [(11,32), (43,54)]
+--------Вариант без свертки
+useRnds' :: S.Seq (Complex Double, Complex Double) -> [Double] -> [Bool]
+useRnds' cds rs = toList $ S.zipWith useRnd cds (S.fromList rs)
+--------
+
+boo = boolsToCDs $ S.fromList [True, True, True, False] --Для тестов
 
 --bl = S.update 2 True boo
 
@@ -130,10 +144,8 @@ throughGate (x, y) m = (new ! (1, 1), new ! (2, 1))
         new = m * colVector (V.fromList [x, y])
 
 updateMem :: Num a => S.Seq (a, a)
-updateMem = adjustSome [0, 1] (`throughGate` (zero 2 2)) (S.fromList [(11,32), (43,54)]) -- Это тестовая вещь
+updateMem = adjustSome [0, 1] (`throughGate` (zero 2 2)) (S.fromList [(11,32), (43,54)])
 
-
--------------Это наверное может и не нужно-----------------|
 searchSafe :: [Int] -> [a] -> [a]
 searchSafe indices xs = go indices 0 xs
    where
@@ -142,32 +154,32 @@ searchSafe indices xs = go indices 0 xs
    go _      _ []               = error "index not found"
    go (i:is) j yys@(y:_) | i==j = y : go is  j     yys
    go iis    j (_:ys)           =     go iis (j+1) ys
------------------------------------------------------------------|
+
 
 searchUnsafe :: [Int] -> [a] -> [a]
 searchUnsafe indexes list = [list!!x | x <- indexes]
 
---cd = [1.0:+0.0, 0.0:+0.0, 0.0:+0.0, 1.0:+0.0]
-
+cd = [1.0:+0.0, 0.0:+0.0, 0.0:+0.0, 1.0:+0.0]
+-- сообщения
 
 -- всяко
 tab :: String
 tab = "\t"
 
--- Осталось общие функции  засунуть сюда
+
 -- реализация обработчиков комонадического интерпретатора
 
-coQInit :: CoMemorySet -> S.Seq Bool -> CoMemorySet
+coQInit :: CoMemorySet -> [Bool] -> CoMemorySet
 coQInit (memory, nameFlag, changeFlag) bits = (newMemory, nameFlag, False)
     where
-        newMemory = addQBits memory (boolsToCDs bits)
+        newMemory = addQBits memory (boolsToCDs $ S.fromList bits)
 
-coCInit :: CoMemorySet -> S.Seq Bool -> CoMemorySet
+coCInit :: CoMemorySet -> [Bool] -> CoMemorySet
 coCInit (memory, nameFlag, changeFlag) bits = (newMemory, nameFlag, False)
     where
-        newMemory = addCBits memory bits
+        newMemory = addCBits memory (S.fromList bits)
 
-coCGate :: CoMemorySet -> S.Seq CBit -> СGateDeterminant -> CoMemorySet
+coCGate :: CoMemorySet -> [CBit] -> СGateDeterminant -> CoMemorySet
 coCGate (memory, nameFlag, changeFlag) cbits m = (memory, nameFlag, False)
     
 
